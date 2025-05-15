@@ -1,0 +1,12 @@
+doc/
+.vscode
+test/
+test_data/
+.venv/
+data/*.mzXML
+*_v*.*
+*.log
+results/*
+data/test/
+data/*
+!data/test_peptide_BrDTB.xlsx
