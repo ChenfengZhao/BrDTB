@@ -155,7 +155,7 @@ def find_filter_peaks(args, mz_lst, intensity_lst, filter=False, sigma=1.0, min_
 
     return peak_mz_lst, peak_intensity_lst
 
-def save_vlineFig2Pdf(pdf, x, y, title, color = 'blue'):
+def save_vlineFig2Pdf(pdf, x, y, title, color = 'blue', xmin = None, xmax = None):
     """Used alone with "with PdfPages("two plots.pdf") as pdf" to save a figure to pdf
 
     Parameters
@@ -180,7 +180,13 @@ def save_vlineFig2Pdf(pdf, x, y, title, color = 'blue'):
     for xi, yi in zip(x, y):
         plt.vlines(xi, 0, yi, colors=color)
 
-    # plt.xlim(left=0)
+    if xmin:
+        # print("setting xmin")
+        plt.xlim(left=xmin)
+    if xmax:
+        # print("setting xmax")
+        plt.xlim(right=xmax)
+    
     plt.ylim(bottom=0)
 
     plt.xlabel('m/z')
@@ -217,6 +223,48 @@ def read_rst_summary_excel(fp):
     
     return df
 
+
+def filter_peaks(mz_inten_lst, tolerance=0.0088):
+    """filter adjacent peaks (mz, intensity) whose mz is in range of tolerance
+
+    Parameters
+    ----------
+    mz_inten_lst : list of tuple
+        list of tuple (mz, intensity)
+    tolerance : float, optional
+        mz tolerance of adjacent peaks, by default 0.0088
+
+    Returns
+    -------
+    result : list of tuple
+        list of tuple (mz, intensity)
+    """
+    # Sort by m/z value
+    sorted_lst = sorted(mz_inten_lst, key=lambda x: x[0])
+    
+    result = []
+    current_group = []
+    
+    for peak in sorted_lst:
+        if not current_group:
+            current_group.append(peak)
+        else:
+            # Compare with the first peak in the current group
+            if abs(peak[0] - current_group[0][0]) <= tolerance:
+                current_group.append(peak)
+            else:
+                # Keep the peak with the highest intensity
+                max_peak = max(current_group, key=lambda x: x[1])
+                result.append(max_peak)
+                current_group = [peak]
+    
+    # Process last group
+    if current_group:
+        max_peak = max(current_group, key=lambda x: x[1])
+        result.append(max_peak)
+    
+    return result
+
 if __name__ == "__main__":
 
     set_matchms_logger_level("ERROR")
@@ -226,7 +274,7 @@ if __name__ == "__main__":
     data_path = "./data"
     delta_t = 0.5
     pep_mod_dict = {"+658.259" : "C30H43BrN8O4"} # peptide modification dict {modification mass: modification composition}
-    abd_threshold = 0.05 # filter out the theoritical peaks that are lower than abd_threshold, reletive to the first theoritical peaks
+    abd_threshold = 0.005 # filter out the theoritical peaks that are lower than abd_threshold, reletive to the first theoritical peaks
     rst_path = "./results"
     rst_summary_fn = "result_summary.xlsx"
 
@@ -340,6 +388,9 @@ if __name__ == "__main__":
             print("ERROR: No isotopologue found!", file=sys.stderr)
             sys.exit(1)
 
+        # filter peaks whose mz is too close to neighbors
+        mz_abd_norm = filter_peaks(mz_abd_norm)
+
         mz_lst, abd_norm_lst = np.array(mz_abd_norm).T
         # print('mz_lst:', mz_lst, type(mz_lst))
         # print('abd_norm_lst:', abd_norm_lst, type(abd_norm_lst))
@@ -403,6 +454,9 @@ if __name__ == "__main__":
         else:
             print("ERROR: No isotopologue found!", file=sys.stderr)
             sys.exit(1)
+
+        # filter peaks whose mz is too close to neighbors
+        nonBr_mz_abd_norm = filter_peaks(nonBr_mz_abd_norm)
         
         nonBr_mz_lst, nonBr_abd_norm_lst = np.array(nonBr_mz_abd_norm).T
 
@@ -423,7 +477,8 @@ if __name__ == "__main__":
         
         # save figures to 3 pdf files. each pdf file contains an experimental spectrum, Br theoretical spectrum, and a non-Br theoretical specturm.
         pdf_base_n = pep_seq + '-' + str(pep_z) + '-' + pep_dn
-
+        xmin = calc_spectrum.mz[0] - 0.1
+        xmax = calc_spectrum.mz[-1] + 0.1
         for i, (Br_score, exp_spectrum) in enumerate(score_spec_lst):
             scan_num = exp_spectrum.metadata["scan_number"]
             pdf_n = pdf_base_n + '-' + scan_num + '.pdf'
@@ -431,13 +486,13 @@ if __name__ == "__main__":
             with PdfPages(rst_path + "/" + pdf_n) as pdf:
 
                 # experimental figure
-                save_vlineFig2Pdf(pdf, exp_spectrum.mz, exp_spectrum.intensities, "Normalized Experimental Spectrum, Scan Number: " + scan_num, color="blue")
+                save_vlineFig2Pdf(pdf, exp_spectrum.mz, exp_spectrum.intensities, "Normalized Experimental Spectrum, Scan Number: " + scan_num, color="blue", xmin=xmin, xmax=xmax)
 
                 # Br theoretical figure
-                save_vlineFig2Pdf(pdf, calc_spectrum.mz, calc_spectrum.intensities, "Nornalized Theoretical Spectrum (Br), Similarity: %.3f" % Br_score)
+                save_vlineFig2Pdf(pdf, calc_spectrum.mz, calc_spectrum.intensities, "Normalized Theoretical Spectrum (Br), Similarity: %.3f" % Br_score, color="blue", xmin=xmin, xmax=xmax)
 
                 # Non-Br theoretical figure
-                save_vlineFig2Pdf(pdf, nonBr_calc_spectrum.mz, nonBr_calc_spectrum.intensities, "Nornalized Theoretical Spectrum (w/o Br), Similarity: %.3f" % nonBr_score)
+                save_vlineFig2Pdf(pdf, nonBr_calc_spectrum.mz, nonBr_calc_spectrum.intensities, "Normalized Theoretical Spectrum (w/o Br), Similarity: %.3f" % nonBr_score, color="blue", xmin=xmin, xmax=xmax)
 
                 print("INFO: scan number: " + scan_num + ", Br similarity score: %.3f, nonBr similarity score:  %.3f" %(Br_score, nonBr_score))
             

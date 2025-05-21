@@ -10,3 +10,4 @@ results/*
 data/test/
 data/*
 !data/test_peptide_BrDTB.xlsx
+*_bak.py
