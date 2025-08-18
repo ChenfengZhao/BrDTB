@@ -20,6 +20,8 @@ from typing import Tuple
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
+import argparse
+
 # TODO MS1 +-0.5min; If the first two theorical peak match, add up the two matched experimental peak intensity. Rank it and pick the 3 scans/spectra with highest sumed intensity and then calculate similarity.
 
 @numba.njit
@@ -265,15 +267,70 @@ def filter_peaks(mz_inten_lst, tolerance=0.0088):
     
     return result
 
+def cil_options():
+    parser = argparse.ArgumentParser(description="Example script")
+    parser.add_argument('-d', '--data_excel', type=str, default='test_peptide_BrDTB.xlsx', help='The name of the data excel file in ./data')
+
+    args = parser.parse_args()
+
+    return args
+
+def replace_pep_mod(s, mapping):
+    """replace pep_mod with specific subseq in the peptide seq
+    Eacn peptide seq should be in format X.XXXX.X. We only extract the subseq between two dots.
+    in the central subseq, we replace [+XX.XXX] with a specific subseq according mapping dict
+
+    Parameters
+    ----------
+    s : string
+        seq to be processed in the format of X.XXXXX.X
+    mapping : dict
+        Used to replace [+XX.XXX] with subseq. {+XX.XXX: subseq}
+    """
+    # 1) Split into prefix . core . suffix
+    triple_pat = re.compile(r'^([^.]*\.)(.*)(\.[^.]*)$')
+
+    m = triple_pat.match(s)
+    if not m:
+        raise ValueError("Input must be in the form X.XXXXXX.X")
+    
+    prefix, core, suffix = m.group(1), m.group(2), m.group(3)
+
+    # 2) the core with ONLY mapped tokens removed (unmapped tokens & letters remain)
+    mapping_empty = {}
+    for key in mapping:
+        mapping_empty[key] = ""
+    
+    # mods_pat = re.compile(r'\[\+(15\.995|658\.259|57\.021)\]')  # capture the number
+    mods_pat = re.compile(r'\[\+(\d+(?:\.\d+)?)\]')
+
+    def repl(match):
+        num = match.group(1)                 # e.g. "15.995"
+        # print(match.group(0), match.group(1))
+        return mapping_empty.get(num, match.group(0))
+
+    new_core = mods_pat.sub(repl, core)      # replaces ALL occurrences inside core
+
+    # 3) concatenation of mapped replacements in order of appearance
+    seq_in_mapping = ''.join(mapping[num] for num in mods_pat.findall(core) if num in mapping)
+
+    return new_core, seq_in_mapping
+
 if __name__ == "__main__":
 
     set_matchms_logger_level("ERROR")
 
+    args = cil_options()
+
     # excel_file = "../data/20240802_BBP_Peptide_1_BrDTB.raw_20240819_Byonic.xlsx"
-    excel_file = "./data/test_peptide_BrDTB.xlsx"
+
+    # excel_file = "./data/test_peptide_BrDTB.xlsx"
+    excel_file = "./data/" + args.data_excel
+    print("Parsing " + excel_file + "...")
     data_path = "./data"
     delta_t = 0.5
-    pep_mod_dict = {"+658.259" : "C30H43BrN8O4"} # peptide modification dict {modification mass: modification composition}
+    # pep_mod_dict = {"+658.259" : "C30H43BrN8O4", "+57.021": "C2H3NO", "+15.995": "O"} # peptide modification dict {modification mass: modification composition}
+    pep_mod_dict = {"658.259" : "C30H43BrN8O4", "57.021": "C2H3NO", "15.995": "O"}
     abd_threshold = 0.005 # filter out the theoritical peaks that are lower than abd_threshold, reletive to the first theoritical peaks
     rst_path = "./results"
     rst_summary_fn = "result_summary.xlsx"
@@ -287,7 +344,7 @@ if __name__ == "__main__":
         pep_n = row['Peptide_Name']
         pep_z = row['z']
         pep_dn = row['Data_File']
-        pep_done_set.add(pep_n + '-' + str(pep_z) + '-' + pep_dn)
+        pep_done_set.add(pep_n + '~' + str(pep_z) + '~' + pep_dn)
 
     # information of target peptides 
     pep_info_df = pd.read_excel(excel_file, sheet_name="Spectra") 
@@ -305,8 +362,8 @@ if __name__ == "__main__":
         pep_rt = row['Scan Time'] # peptide scan/retention time (ms2)
         pep_dn = row['Comment'].split('.')[0] # data file name
 
-        pep_rt_dict[pep_n + '-' + str(pep_z) + '-' + pep_dn].append(pep_rt)
-        # pep_fn_dict[pep_n + '-' + str(pep_z)] = row['Comment'].split('.')[0]
+        pep_rt_dict[pep_n + '~' + str(pep_z) + '~' + pep_dn].append(pep_rt)
+        # pep_fn_dict[pep_n + '~' + str(pep_z)] = row['Comment'].split('.')[0]
     
     # print("pep_rt_dict:", pep_rt_dict)
     # print("pep_fn_dict:",pep_fn_dict)
@@ -318,9 +375,11 @@ if __name__ == "__main__":
     # Process each peptide with specific charge
     for pep_n_z_dn, tgt_t_lst in pep_rt_dict.items():
 
-        pep_n = pep_n_z_dn.split('-')[0]
-        pep_z = int(pep_n_z_dn.split('-')[1])
-        tgt_fn = pep_n_z_dn.split('-')[2]
+        print("pep_n_z_dn:", pep_n_z_dn)
+
+        pep_n = pep_n_z_dn.split('~')[0]
+        pep_z = int(pep_n_z_dn.split('~')[1])
+        tgt_fn = pep_n_z_dn.split('~')[2]
 
         # if pep_n_z_dn exists in pep_done_set, skip this pep
         if pep_n_z_dn in pep_done_set:
@@ -330,7 +389,8 @@ if __name__ == "__main__":
         row_done = {'Peptide_Name': pep_n, 'z': str(pep_z), 'Data_File': tgt_fn, 'Scan_Number':[], 'Similarity_Score(Br)': [], 'Similarity_Score(nonBr)': []}
 
 
-        print("INFO: Processing peptide: %s, charge: %s, data File: %s......"% (pep_n, str(pep_z), tgt_fn))
+        print("INFO: Processing peptide: %s, charge: %s, data File: %s..."% (pep_n, str(pep_z), tgt_fn))
+        
         # Find the matched data file which has the same name as peptide name, regardless of big/small capital
         matched_file_lst = [fpn for fpn in data_pn_lst if os.path.basename(fpn).split(".")[0].lower() == tgt_fn.lower()]
 
@@ -356,21 +416,27 @@ if __name__ == "__main__":
             exit()
         # Calcuate the averge of tgt_t_lst as tgt_t of ms2
         tgt_t = sum(tgt_t_lst)/len(tgt_t_lst)
-
+        
         # Get the peptide composition from pep_n
-        # pep_n = pep_n_z.split('-')[0] # raw peptide name in excel
-        # pep_z = int(pep_n_z.split('-')[1]) # peptide charge in excel
-        pep_match = re.search(r'\.([A-Z]+)\[(.*?)\]([A-Z]+)\.', pep_n)
-        if not pep_match:
-            print("ERROR: " + pep_n + " doesn't match the pattern!")
-            exit()
-        pep_seq = pep_match.group(1) + pep_match.group(3)
-        pep_mod = pep_match.group(2)
-        pep_mod_comp = pep_mod_dict[pep_mod]
-        # print('pep_seq:', pep_seq)
-        # print('pep_mod_comp:', pep_mod_comp)
+        # # pep_n = pep_n_z.split('~')[0] # raw peptide name in excel
+        # # pep_z = int(pep_n_z.split('~')[1]) # peptide charge in excel
+        # pep_match = re.search(r'\.([A-Z]+)\[(.*?)\]([A-Z]+)\.', pep_n)
+        # if not pep_match:
+        #     print("ERROR: " + pep_n + " doesn't match the pattern!")
+        #     exit()
+        # pep_seq = pep_match.group(1) + pep_match.group(3)
+        # pep_mod = pep_match.group(2)
+        # pep_mod_comp = pep_mod_dict[pep_mod]
+        # # print('pep_seq:', pep_seq)
+        # # print('pep_mod_comp:', pep_mod_comp)
+        # pep_comp = mass.Composition(sequence=pep_seq) + mass.Composition(formula=pep_mod_comp)
+        # # print('pep_comp:', pep_comp)
+        pep_seq, pep_mod_comp = replace_pep_mod(pep_n, pep_mod_dict)
+        print("Pepetide Core w/o mod:", pep_seq)
+        print("Pepetide mod:", pep_mod_comp)
         pep_comp = mass.Composition(sequence=pep_seq) + mass.Composition(formula=pep_mod_comp)
-        # print('pep_comp:', pep_comp)
+
+        # continue
 
         # Get theoritical isotopologue peaks: list of tuple [(mz, abundance)]
         # @ToDo: nomalization to the first peak and then overall threshold = 0.05
@@ -476,7 +542,7 @@ if __name__ == "__main__":
             
         
         # save figures to 3 pdf files. each pdf file contains an experimental spectrum, Br theoretical spectrum, and a non-Br theoretical specturm.
-        pdf_base_n = pep_seq + '-' + str(pep_z) + '-' + pep_dn
+        pdf_base_n = pep_n + '~' + str(pep_z) + '~' + pep_dn
         xmin = calc_spectrum.mz[0] - 0.1
         xmax = calc_spectrum.mz[-1] + 0.1
         for i, (Br_score, exp_spectrum) in enumerate(score_spec_lst):

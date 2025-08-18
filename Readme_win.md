@@ -3,15 +3,15 @@
 Add a few sentence to discribe this project.
 
 ## Requirements
-- Recommended OS: Linux (e.g., Ubuntu) 
-    - For Windows OS, follow [this toturial](./Readme_win.md)
-- Python3 (e.g., 3.12.3)
+- Recommended OS: Windows 10 
+    - For Linux OS, following [this tutorial](./Readme.md)
+- Python3 (i.e., 3.12.3)
 - Pip3
 - requirements.txt
 
 ## Installation Guide (Linux)
 
-Open a terminal and enter the software folder containing brdtb_cal.py
+Open a CMD terminal and enter the folder containing brdtb_cal.py
 ```
 cd <the path of this folder (e.g., BrDTB or BrDTB-main)>
 ```
@@ -19,20 +19,19 @@ cd <the path of this folder (e.g., BrDTB or BrDTB-main)>
 Run the following command to create a virtual environment for the first time, but skip this step if you've already done it.
 
 ```
-python3 -m venv .venv
+python -m venv .venv
 ```
 
-Install the dependencies in a virtual environment
+Start the virtual environment and install the dependencies in the virtual environment
 ```
-source .venv/bin/activate # start the virtual environment
-pip install -r requirements.txt # install python dependencies
+.venv\Scripts\activate.bat
+pip install -r requirements.txt
 ```
 
 Run the following command to exit the virtual environment once the program is finished
 ```
 deactivate
 ```
-
 ## CLI Options
 * -h, --help            show this help message and exit
 * -d DATA_EXCEL, --data_excel DATA_EXCEL
@@ -44,12 +43,12 @@ deactivate
 
 2. Copy excel and mzXML files to ./data/ (e.g., test_peptide_BrDTB.xlsx, 20240802_BBP_Peptide_1_BrDTB.mzXML). if you need to use a different excel file, using the data_excel option. For example 
 ```
-python3 brdtb_cal.py --data_excel test_peptide_BrDTB.xlsx
+python brdtb_cal.py --data_excel test_peptide_BrDTB.xlsx
 ```
 
 3. Run the program using the following command
 ```
-python3 brdtb_cal.py
+python brdtb_cal.py
 ```
 
 4. Results will be generated in ./results/. If users want to rerun the same peptide, delete the following row in ./results/result_summary.xlsx. Otherwise, the program will not process the peptides that have already been processed.
