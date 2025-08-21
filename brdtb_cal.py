@@ -362,6 +362,14 @@ if __name__ == "__main__":
         pep_rt = row['Scan Time'] # peptide scan/retention time (ms2)
         pep_dn = row['Comment'].split('.')[0] # data file name
 
+        # Ignore all the pipetides that don't contain [+658.259]
+        if "[+658.259]" in pep_n:
+            # print("INFO: [+658.259] found!")
+            pass
+        else:
+            print("INFO: [+658.259] not found! Skip the pipetide:", pep_n)
+            continue
+
         pep_rt_dict[pep_n + '~' + str(pep_z) + '~' + pep_dn].append(pep_rt)
         # pep_fn_dict[pep_n + '~' + str(pep_z)] = row['Comment'].split('.')[0]
     
@@ -390,7 +398,7 @@ if __name__ == "__main__":
 
 
         print("INFO: Processing peptide: %s, charge: %s, data File: %s..."% (pep_n, str(pep_z), tgt_fn))
-        
+        # """
         # Find the matched data file which has the same name as peptide name, regardless of big/small capital
         matched_file_lst = [fpn for fpn in data_pn_lst if os.path.basename(fpn).split(".")[0].lower() == tgt_fn.lower()]
 
@@ -408,7 +416,7 @@ if __name__ == "__main__":
 
         # Read ms1 scans of the matched data file
         ms1_spectra_lst = list(load_from_mzxml(matched_fpn, ms_level=1))
-
+        # """
         # Calcualte target scan/retention time tgt_t
         # tgt_t_lst = pep_rt_dict[pep_n_z]
         if not tgt_t_lst:
@@ -432,9 +440,10 @@ if __name__ == "__main__":
         # pep_comp = mass.Composition(sequence=pep_seq) + mass.Composition(formula=pep_mod_comp)
         # # print('pep_comp:', pep_comp)
         pep_seq, pep_mod_comp = replace_pep_mod(pep_n, pep_mod_dict)
-        print("Pepetide Core w/o mod:", pep_seq)
-        print("Pepetide mod:", pep_mod_comp)
+        print("INFO: Pepetide Core w/o mod:", pep_seq)
+        print("INFO: Pepetide mod:", pep_mod_comp)
         pep_comp = mass.Composition(sequence=pep_seq) + mass.Composition(formula=pep_mod_comp)
+        print("INFO: Br peptide composition:", pep_comp)
 
         # continue
 

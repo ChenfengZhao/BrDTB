@@ -41,14 +41,15 @@ deactivate
 ## Usage Example
 1. Download the source code of brdtb from Github.
 
-2. Copy excel and mzXML files to ./data/ (e.g., test_peptide_BrDTB.xlsx, 20240802_BBP_Peptide_1_BrDTB.mzXML). if you need to use a different excel file, using the data_excel option. For example 
-```
-python brdtb_cal.py --data_excel test_peptide_BrDTB.xlsx
-```
+2. Copy excel and mzXML files to ./data/ (e.g., test_peptide_BrDTB.xlsx, 20240802_BBP_Peptide_1_BrDTB.mzXML).
 
 3. Run the program using the following command
 ```
 python brdtb_cal.py
+```
+If you need to use a different excel file, using the data_excel option. For example 
+```
+python brdtb_cal.py --data_excel test_peptide_BrDTB.xlsx
 ```
 
 4. Results will be generated in ./results/. If users want to rerun the same peptide, delete the following row in ./results/result_summary.xlsx. Otherwise, the program will not process the peptides that have already been processed.
