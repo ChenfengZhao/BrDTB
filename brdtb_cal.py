@@ -379,8 +379,7 @@ if __name__ == "__main__":
     # Find the data path + data name of all the mzXML files under data_path, including all the subpaths
     data_pn_lst = glob.glob(data_path+"/**/*.mzXML", recursive=True) # data path + data name of all the data files, including all the subpaths
 
-    prev_matched_fpn = "" # Store prev data path + data name
-    
+
     # Process each peptide with specific charge
     for pep_n_z_dn, tgt_t_lst in pep_rt_dict.items():
 
@@ -413,17 +412,11 @@ if __name__ == "__main__":
 
         # print("matched_file_lst", matched_file_lst)
         matched_fpn = matched_file_lst[0]
-        print("INFO: found matched data file!", matched_fpn)
-        # """
+        print("INFO: found matched file!", matched_fpn)
 
-        # If matched_fpn is not the same as prev_matched_fpn, read ms1 scans of the matched data file
-        if matched_fpn != prev_matched_fpn:
-            print("INFO: Loading the new data file")
-            ms1_spectra_lst = list(load_from_mzxml(matched_fpn, ms_level=1))
-            prev_matched_fpn = matched_fpn
-        else:
-            print("INFO: Using the same data file as the last run.")
-        
+        # Read ms1 scans of the matched data file
+        ms1_spectra_lst = list(load_from_mzxml(matched_fpn, ms_level=1))
+        # """
         # Calcualte target scan/retention time tgt_t
         # tgt_t_lst = pep_rt_dict[pep_n_z]
         if not tgt_t_lst:
