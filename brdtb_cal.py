@@ -227,7 +227,7 @@ def read_rst_summary_excel(fp):
 
 
 def filter_peaks(mz_inten_lst, tolerance=0.0088):
-    """filter adjacent peaks (mz, intensity) whose mz is in range of tolerance
+    """filter adjacent peaks (mz, intensity) whose mz is in range of tolerance, and ignore peaks which are too close to the peak with max intensity.
 
     Parameters
     ----------
@@ -265,6 +265,61 @@ def filter_peaks(mz_inten_lst, tolerance=0.0088):
         max_peak = max(current_group, key=lambda x: x[1])
         result.append(max_peak)
     
+    return result
+
+def merge_peaks(mz_inten_lst, tolerance=0.0088):
+    """Merge adjacent peaks (mz, intensity) whose mz is in range of tolerance. It adds intensity of adjacent peaks, which are too close to the higest peak, to the intensity of the highest peak in the range of tolerance. In other words, merge all the adjacent peaks in the tolerance range to the highest peak in the tolerance range.
+
+    Parameters
+    ----------
+    mz_inten_lst : list of tuple
+        list of tuple (mz, intensity)
+    tolerance : float, optional
+        mz tolerance of adjacent peaks, by default 0.0088
+
+    Returns
+    -------
+    result : list of tuple
+        list of tuple (mz, intensity)
+    """
+    # Sort by m/z value
+    sorted_lst = sorted(mz_inten_lst, key=lambda x: x[0])
+    
+    result = []
+
+    group_first_mz = None
+    total_intensity = 0.0
+    best_mz = None
+    best_intensity = None
+
+    for mz, inten in sorted_lst:
+        if group_first_mz is None:
+            # start a new group
+            group_first_mz = mz
+            total_intensity = inten
+            best_mz = mz
+            best_intensity = inten
+            continue
+
+        if abs(mz - group_first_mz) <= tolerance:
+            # still in the group
+            total_intensity += inten
+            if inten > best_intensity:
+                best_intensity = inten
+                best_mz = mz
+        else:
+            # flush previous group
+            result.append((best_mz, total_intensity))
+            # start new group
+            group_first_mz = mz
+            total_intensity = inten
+            best_mz = mz
+            best_intensity = inten
+
+    # flush last group
+    if group_first_mz is not None:
+        result.append((best_mz, total_intensity))
+
     return result
 
 def cil_options():
@@ -379,6 +434,9 @@ if __name__ == "__main__":
     # Find the data path + data name of all the mzXML files under data_path, including all the subpaths
     data_pn_lst = glob.glob(data_path+"/**/*.mzXML", recursive=True) # data path + data name of all the data files, including all the subpaths
 
+    # for the same dataset, only read once
+    ms1_spectra_lst = []
+    prev_matched_fpn = ""
 
     # Process each peptide with specific charge
     for pep_n_z_dn, tgt_t_lst in pep_rt_dict.items():
@@ -415,7 +473,16 @@ if __name__ == "__main__":
         print("INFO: found matched file!", matched_fpn)
 
         # Read ms1 scans of the matched data file
-        ms1_spectra_lst = list(load_from_mzxml(matched_fpn, ms_level=1))
+        if(prev_matched_fpn != matched_fpn):
+            print("INFO: Read new dataset file: " + matched_fpn)
+            ms1_spectra_lst = list(load_from_mzxml(matched_fpn, ms_level=1))
+            prev_matched_fpn = matched_fpn
+        else:
+            print("INFO: Use the previous dataset file: " + prev_matched_fpn)
+        
+        if not ms1_spectra_lst:
+            print("ERROR: ms1_spectra_lst is empty. Stop processing!")
+            exit()
         # """
         # Calcualte target scan/retention time tgt_t
         # tgt_t_lst = pep_rt_dict[pep_n_z]
@@ -464,7 +531,8 @@ if __name__ == "__main__":
             sys.exit(1)
 
         # filter peaks whose mz is too close to neighbors
-        mz_abd_norm = filter_peaks(mz_abd_norm)
+        # mz_abd_norm = filter_peaks(mz_abd_norm)
+        mz_abd_norm = merge_peaks(mz_abd_norm)
 
         mz_lst, abd_norm_lst = np.array(mz_abd_norm).T
         # print('mz_lst:', mz_lst, type(mz_lst))
@@ -531,7 +599,8 @@ if __name__ == "__main__":
             sys.exit(1)
 
         # filter peaks whose mz is too close to neighbors
-        nonBr_mz_abd_norm = filter_peaks(nonBr_mz_abd_norm)
+        # nonBr_mz_abd_norm = filter_peaks(nonBr_mz_abd_norm)
+        nonBr_mz_abd_norm = merge_peaks(nonBr_mz_abd_norm)
         
         nonBr_mz_lst, nonBr_abd_norm_lst = np.array(nonBr_mz_abd_norm).T
 
@@ -581,6 +650,13 @@ if __name__ == "__main__":
         pep_done_df = pd.read_excel(rst_path + "/" + rst_summary_fn)
         pep_done_df = pd.concat([pep_done_df, pd.DataFrame([row_done])], ignore_index=True)
         pep_done_df.to_excel(rst_path + "/" + rst_summary_fn, index=False, engine='openpyxl')
+
+        print("*"*64)
+        # delete varialbes that will consume large memory footprint
+        # del ms1_spectra_lst
+
+
+
 
 
 
