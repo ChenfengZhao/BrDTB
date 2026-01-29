@@ -385,7 +385,7 @@ if __name__ == "__main__":
     data_path = "./data"
     delta_t = 0.5
     # pep_mod_dict = {"+658.259" : "C30H43BrN8O4", "+57.021": "C2H3NO", "+15.995": "O"} # peptide modification dict {modification mass: modification composition}
-    pep_mod_dict = {"658.259" : "C30H43BrN8O4", "57.021": "C2H3NO", "15.995": "O"}
+    pep_mod_dict = {"658.259" : "C30H43BrN8O4", "57.021": "C2H3NO", "15.995": "O", "485.172" : "C22H28BrN7O3S-1", "876.317" : "C42H53BrN8O8"}
     abd_threshold = 0.005 # filter out the theoritical peaks that are lower than abd_threshold, reletive to the first theoritical peaks
     rst_path = "./results"
     rst_summary_fn = "result_summary.xlsx"
@@ -417,13 +417,13 @@ if __name__ == "__main__":
         pep_rt = row['Scan Time'] # peptide scan/retention time (ms2)
         pep_dn = row['Comment'].split('.')[0] # data file name
 
-        # Ignore all the pipetides that don't contain [+658.259]
-        if "[+658.259]" in pep_n:
-            # print("INFO: [+658.259] found!")
-            pass
-        else:
-            print("INFO: [+658.259] not found! Skip the pipetide:", pep_n)
-            continue
+        # # Ignore all the pipetides that don't contain [+658.259]
+        # if "[+658.259]" in pep_n:
+        #     # print("INFO: [+658.259] found!")
+        #     pass
+        # else:
+        #     print("INFO: [+658.259] not found! Skip the pipetide:", pep_n)
+        #     continue
 
         pep_rt_dict[pep_n + '~' + str(pep_z) + '~' + pep_dn].append(pep_rt)
         # pep_fn_dict[pep_n + '~' + str(pep_z)] = row['Comment'].split('.')[0]
