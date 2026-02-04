@@ -409,6 +409,9 @@ if __name__ == "__main__":
     pep_rt_dict = defaultdict(list) # {peptide_charge: list of scan time}
     pep_fn_dict = defaultdict(str) # {peptide_charge: peptide file name}
 
+    # filter all the rows whose "Comment" column is NaN
+    pep_info_df = pep_info_df.dropna(subset=["Comment"])
+
     for index, row in pep_info_df.iterrows():
         # print(row)
         # print(row['Peptide\n< ProteinMetrics Confidential >'])
@@ -425,7 +428,7 @@ if __name__ == "__main__":
         #     print("INFO: [+658.259] not found! Skip the pipetide:", pep_n)
         #     continue
 
-        pep_rt_dict[pep_n + '~' + str(pep_z) + '~' + pep_dn].append(pep_rt)
+        pep_rt_dict[pep_n + '~' + str(int(pep_z)) + '~' + pep_dn].append(pep_rt)
         # pep_fn_dict[pep_n + '~' + str(pep_z)] = row['Comment'].split('.')[0]
     
     # print("pep_rt_dict:", pep_rt_dict)
