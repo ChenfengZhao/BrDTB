@@ -421,12 +421,17 @@ if __name__ == "__main__":
         pep_dn = row['Comment'].split('.')[0] # data file name
 
         # # Ignore all the pipetides that don't contain [+658.259]
-        # if "[+658.259]" in pep_n:
-        #     # print("INFO: [+658.259] found!")
-        #     pass
-        # else:
-        #     print("INFO: [+658.259] not found! Skip the pipetide:", pep_n)
-        #     continue
+        if "[+658.259]" in pep_n:
+            # print("INFO: [+658.259] found!")
+            pass
+        elif "[+485.172]" in pep_n:
+            # print("INFO: [+485.172] found!")
+            pass
+        elif "[+876.317]" in pep_n:
+            pass
+        else:
+            print("WARNING: [+658.259] or [+485.172] or [+876.317] not found! Skip the pipetide:", pep_n)
+            continue
 
         pep_rt_dict[pep_n + '~' + str(int(pep_z)) + '~' + pep_dn].append(pep_rt)
         # pep_fn_dict[pep_n + '~' + str(pep_z)] = row['Comment'].split('.')[0]
